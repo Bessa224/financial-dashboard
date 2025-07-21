@@ -259,70 +259,7 @@ def compare_stocks(symbol1, symbol2, timeframe="1mo"):
     except Exception as e:
         return None, None, None, None
 
-# Function to get financial news
-def get_financial_news():
-    """Get financial news from various sources with better error handling"""
-    news_data = []
-    
-    # Simplified news sources that work reliably
-    news_sources = [
-        {
-            'title': 'Ibovespa opera em alta com expectativas sobre política monetária',
-            'link': 'https://www.infomoney.com.br',
-            'published': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'InfoMoney 🇧🇷',
-            'category': 'Brazilian Market'
-        },
-        {
-            'title': 'Petrobras anuncia novo programa de dividendos para acionistas',
-            'link': 'https://www.infomoney.com.br',
-            'published': (datetime.now() - timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'InfoMoney 🇧🇷',
-            'category': 'Brazilian Market'
-        },
-        {
-            'title': 'Vale registra alta nas exportações de minério de ferro',
-            'link': 'https://valor.globo.com',
-            'published': (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'Valor Econômico 🇧🇷',
-            'category': 'Brazilian Market'
-        },
-        {
-            'title': 'Bancos brasileiros reportam lucros recordes no trimestre',
-            'link': 'https://valor.globo.com',
-            'published': (datetime.now() - timedelta(hours=3)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'Valor Econômico 🇧🇷',
-            'category': 'Brazilian Market'
-        },
-        {
-            'title': 'S&P 500 reaches new highs amid tech sector rally',
-            'link': 'https://finance.yahoo.com',
-            'published': (datetime.now() - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'Yahoo Finance 🌍',
-            'category': 'International Market'
-        },
-        {
-            'title': 'Federal Reserve signals potential rate adjustments',
-            'link': 'https://finance.yahoo.com',
-            'published': (datetime.now() - timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'Yahoo Finance 🌍',
-            'category': 'International Market'
-        },
-        {
-            'title': 'Tech giants report strong quarterly earnings',
-            'link': 'https://www.marketwatch.com',
-            'published': (datetime.now() - timedelta(hours=2)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'MarketWatch 🌍',
-            'category': 'International Market'
-        },
-        {
-            'title': 'Oil prices stabilize after recent volatility',
-            'link': 'https://www.marketwatch.com',
-            'published': (datetime.now() - timedelta(hours=4)).strftime('%Y-%m-%d %H:%M:%S'),
-            'source': 'MarketWatch 🌍',
-            'category': 'International Market'
-        }
-    ]
+
     
     # Try to get real RSS feeds, but fallback to static news if they fail
     try:
@@ -337,13 +274,8 @@ def get_financial_news():
                     'source': 'CNN Money 🌍',
                     'category': 'International Market'
                 })
-    except:
-        pass
+ 
     
-    # Add static news sources
-    news_data.extend(news_sources)
-    
-    return news_data
 
 # Enhanced stock data function
 def get_comprehensive_stock_data(symbol, timeframe="Current"):
