@@ -120,7 +120,116 @@ col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.title("📊 Advanced Financial Dashboard")
     st.markdown("<p style='text-align: center; color: #666;'>Comprehensive Stock Analysis & Real-Time Data</p>", unsafe_allow_html=True)
-st.markdown("---")
+
+# Tab navigation
+tab1, tab2 = st.tabs(["📈 Individual Stock Analysis", "📊 All Stocks Table"])
+
+# All stocks from your Excel spreadsheet
+ALL_STOCKS = {
+    "Bancos": ["ITUB4.SA", "BBDC4.SA", "SANB11.SA", "BBAS3.SA", "BPAC11.SA"],
+    "Petróleo": ["PETR4.SA", "PETR3.SA", "PRIO3.SA", "RRRP3.SA"],
+    "Mineração": ["VALE3.SA", "CSNA3.SA", "USIM5.SA", "GGBR4.SA"],
+    "Tecnologia": ["AAPL", "GOOGL", "MSFT", "TSLA", "NVDA", "META"],
+    "Varejo": ["MGLU3.SA", "LREN3.SA", "AMER3.SA", "VVAR3.SA"],
+    "Telecomunicações": ["VIVT3.SA", "TIMS3.SA"],
+    "Energia Elétrica": ["ELET3.SA", "ELET6.SA", "CPFE3.SA", "ENBR3.SA"],
+    "Alimentício": ["JBSS3.SA", "BRFS3.SA", "MRFG3.SA"],
+    "Papel e Celulose": ["SUZB3.SA", "KLBN11.SA"],
+    "Siderurgia": ["GOAU4.SA", "CSNA3.SA"],
+    "Construção": ["MRVE3.SA", "CYRE3.SA", "EZTC3.SA"]
+}
+
+# Function to get multiple stocks data
+def get_all_stocks_data():
+    """Get real-time data for all stocks in the portfolio"""
+    all_data = []
+    
+    for sector, stocks in ALL_STOCKS.items():
+        for symbol in stocks:
+            try:
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                
+                if info and info.get('regularMarketPrice'):
+                    current_price = info.get('regularMarketPrice', 0) or 0
+                    change = info.get('regularMarketChange', 0) or 0
+                    change_percent = info.get('regularMarketChangePercent', 0) or 0
+                    
+                    # Get historical data for performance calculations
+                    hist_5d = stock.history(period="5d")
+                    hist_30d = stock.history(period="1mo")
+                    hist_ytd = stock.history(period="ytd")
+                    hist_1y = stock.history(period="1y")
+                    
+                    # Calculate performance
+                    perf_5d = 0
+                    perf_30d = 0
+                    perf_ytd = 0
+                    perf_1y = 0
+                    
+                    if not hist_5d.empty and len(hist_5d) > 1:
+                        perf_5d = ((current_price - hist_5d['Close'].iloc[0]) / hist_5d['Close'].iloc[0] * 100)
+                    if not hist_30d.empty:
+                        perf_30d = ((current_price - hist_30d['Close'].iloc[0]) / hist_30d['Close'].iloc[0] * 100)
+                    if not hist_ytd.empty:
+                        perf_ytd = ((current_price - hist_ytd['Close'].iloc[0]) / hist_ytd['Close'].iloc[0] * 100)
+                    if not hist_1y.empty:
+                        perf_1y = ((current_price - hist_1y['Close'].iloc[0]) / hist_1y['Close'].iloc[0] * 100)
+                    
+                    stock_data = {
+                        'Setor': sector,
+                        'Símbolo': symbol,
+                        'Nome': info.get('longName', symbol)[:30] + '...' if len(info.get('longName', symbol)) > 30 else info.get('longName', symbol),
+                        'Preço': current_price,
+                        'Variação': change,
+                        'Variação %': change_percent,
+                        '5d %': perf_5d,
+                        '30d %': perf_30d,
+                        'YTD %': perf_ytd,
+                        'LTM %': perf_1y,
+                        'Volume': info.get('regularMarketVolume', 0) or 0,
+                        'P/E': info.get('trailingPE', 0) or 0,
+                        'Beta': info.get('beta', 0) or 0,
+                        'Market Cap': info.get('marketCap', 0) or 0,
+                        '52W High': info.get('fiftyTwoWeekHigh', 0) or 0,
+                        '52W Low': info.get('fiftyTwoWeekLow', 0) or 0
+                    }
+                    all_data.append(stock_data)
+            except Exception as e:
+                continue  # Skip stocks that fail to load
+    
+    return pd.DataFrame(all_data)
+
+# Function to style the dataframe
+def style_dataframe(df):
+    """Apply styling to the dataframe"""
+    def color_negative_red(val):
+        if isinstance(val, (int, float)):
+            color = 'color: #FF4444' if val < 0 else 'color: #00C851' if val > 0 else 'color: #666'
+            return color
+        return ''
+    
+    # Apply styling
+    styled_df = df.style.applymap(color_negative_red, subset=['Variação', 'Variação %', '5d %', '30d %', 'YTD %', 'LTM %'])
+    
+    # Format columns
+    styled_df = styled_df.format({
+        'Preço': 'R$ {:.2f}' if any('.SA' in symbol for symbol in df['Símbolo']) else '$ {:.2f}',
+        'Variação': '{:+.2f}',
+        'Variação %': '{:+.2f}%',
+        '5d %': '{:+.2f}%',
+        '30d %': '{:+.2f}%',
+        'YTD %': '{:+.2f}%',
+        'LTM %': '{:+.2f}%',
+        'Volume': '{:,.0f}',
+        'P/E': '{:.2f}',
+        'Beta': '{:.2f}',
+        'Market Cap': lambda x: f'${x/1e9:.2f}B' if x > 0 else 'N/A',
+        '52W High': 'R$ {:.2f}' if any('.SA' in symbol for symbol in df['Símbolo']) else '$ {:.2f}',
+        '52W Low': 'R$ {:.2f}' if any('.SA' in symbol for symbol in df['Símbolo']) else '$ {:.2f}'
+    })
+    
+    return styled_df
 
 # Enhanced stock data function
 def get_comprehensive_stock_data(symbol, timeframe="Current"):
@@ -346,14 +455,93 @@ if should_refresh:
     st.session_state.force_refresh = False  # Reset force refresh flag
     # Don't rerun here to avoid infinite loop
 
-# Get and display comprehensive stock data
-with st.spinner(f'Loading comprehensive data for {stock_symbol} ({timeframe})...'):
-    data = get_comprehensive_stock_data(stock_symbol, timeframe)
+# Tab 1: Individual Stock Analysis
+with tab1:
+    # Get and display comprehensive stock data
+    with st.spinner(f'Loading comprehensive data for {stock_symbol} ({timeframe})...'):
+        data = get_comprehensive_stock_data(stock_symbol, timeframe)
+    
+    if data:
+        display_comprehensive_dashboard(data, timeframe)
+    else:
+        st.error("❌ Unable to load stock data. Please try a different symbol.")
 
-if data:
-    display_comprehensive_dashboard(data, timeframe)
-else:
-    st.error("❌ Unable to load stock data. Please try a different symbol.")
+# Tab 2: All Stocks Table
+with tab2:
+    st.subheader("📊 Portfolio Completo - Dados em Tempo Real")
+    st.markdown("*Todos os ativos do seu portfólio com métricas financeiras atualizadas*")
+    
+    # Refresh button for the table
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        if st.button("🔄 Atualizar Dados", key="refresh_table"):
+            st.rerun()
+    with col2:
+        auto_refresh = st.checkbox("Auto-refresh (30s)", key="auto_refresh_table")
+    
+    # Load all stocks data
+    with st.spinner('Carregando dados de todos os ativos...'):
+        all_stocks_df = get_all_stocks_data()
+    
+    if not all_stocks_df.empty:
+        # Display summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            total_stocks = len(all_stocks_df)
+            st.metric("Total de Ativos", total_stocks)
+        with col2:
+            positive_stocks = len(all_stocks_df[all_stocks_df['Variação %'] > 0])
+            st.metric("Em Alta", positive_stocks, f"{positive_stocks/total_stocks*100:.1f}%")
+        with col3:
+            negative_stocks = len(all_stocks_df[all_stocks_df['Variação %'] < 0])
+            st.metric("Em Baixa", negative_stocks, f"{negative_stocks/total_stocks*100:.1f}%")
+        with col4:
+            avg_performance = all_stocks_df['Variação %'].mean()
+            st.metric("Performance Média", f"{avg_performance:+.2f}%")
+        
+        st.markdown("---")
+        
+        # Sector filter
+        sectors = ['Todos'] + list(ALL_STOCKS.keys())
+        selected_sector = st.selectbox("Filtrar por Setor:", sectors)
+        
+        # Filter dataframe by sector
+        if selected_sector != 'Todos':
+            filtered_df = all_stocks_df[all_stocks_df['Setor'] == selected_sector]
+        else:
+            filtered_df = all_stocks_df
+        
+        # Display the styled table
+        st.markdown("### 📈 Tabela de Ativos")
+        
+        # Make the table interactive
+        styled_table = style_dataframe(filtered_df)
+        st.dataframe(
+            styled_table,
+            use_container_width=True,
+            height=600,
+            hide_index=True
+        )
+        
+        # Download button
+        csv = filtered_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download CSV",
+            data=csv,
+            file_name=f"portfolio_stocks_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv"
+        )
+        
+        # Auto-refresh functionality for table
+        if auto_refresh:
+            time.sleep(30)
+            st.rerun()
+            
+    else:
+        st.error("❌ Não foi possível carregar os dados dos ativos. Tente novamente.")
+        
+    # Last update time for table
+    st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
 
 # Sidebar status
 st.sidebar.markdown("---")
@@ -362,7 +550,12 @@ st.sidebar.write(f"🕐 Last updated: {st.session_state.last_update.strftime('%H
 st.sidebar.write(f"⏱️ Next update in: {max(0, update_interval - time_diff):.0f} seconds")
 st.sidebar.write(f"📅 Current timeframe: {timeframe}")
 st.sidebar.write(f"📈 Current stock: {stock_symbol}")
-if data:
+
+# Show total stocks in portfolio
+total_portfolio_stocks = sum(len(stocks) for stocks in ALL_STOCKS.values())
+st.sidebar.write(f"📊 Portfolio: {total_portfolio_stocks} ativos")
+
+if 'data' in locals() and data:
     st.sidebar.success(f"✅ {stock_symbol} data loaded successfully")
 else:
     st.sidebar.error(f"❌ Failed to load {stock_symbol}")
