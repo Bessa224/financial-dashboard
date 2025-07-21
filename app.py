@@ -6,9 +6,6 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
 import numpy as np
-import requests
-from bs4 import BeautifulSoup
-import feedparser
 
 # Page configuration
 st.set_page_config(
@@ -125,7 +122,7 @@ with col2:
     st.markdown("<p style='text-align: center; color: #666;'>Comprehensive Stock Analysis & Real-Time Data</p>", unsafe_allow_html=True)
 
 # Tab navigation
-tab1, tab2, tab3, tab4 = st.tabs(["📈 Individual Stock Analysis", "📊 All Stocks Table", "⚖️ Stock Comparison", "📰 Financial News"])
+tab1, tab2, tab3 = st.tabs(["📈 Individual Stock Analysis", "📊 All Stocks Table", "⚖️ Stock Comparison"])
 
 # All stocks from your Excel spreadsheet
 ALL_STOCKS = {
@@ -260,22 +257,6 @@ def compare_stocks(symbol1, symbol2, timeframe="1mo"):
         return None, None, None, None
 
 
-    
-    # Try to get real RSS feeds, but fallback to static news if they fail
-    try:
-        # Try a simple RSS feed that usually works
-        feed = feedparser.parse('https://rss.cnn.com/rss/money_latest.rss')
-        if feed.entries:
-            for entry in feed.entries[:3]:
-                news_data.append({
-                    'title': entry.title,
-                    'link': entry.link,
-                    'published': entry.published if hasattr(entry, 'published') else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                    'source': 'CNN Money 🌍',
-                    'category': 'International Market'
-                })
- 
-    
 
 # Enhanced stock data function
 def get_comprehensive_stock_data(symbol, timeframe="Current"):
@@ -721,80 +702,8 @@ with tab3:
             st.warning("⚠️ Selecione duas ações diferentes para comparar.")
     
 
-# Tab 4: Financial News
-with tab4:
-    st.subheader("📰 Notícias Financeiras")
-    st.markdown("*Últimas notícias do mercado brasileiro e internacional*")
-    
-    # Refresh button for news
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        if st.button("🔄 Atualizar Notícias", key="refresh_news"):
-            st.rerun()
-    
-    # Load financial news
-    with st.spinner('Carregando notícias financeiras...'):
-        news_data = get_financial_news()
-    
-    if news_data:
-        # Filter by category with session state for better performance
-        categories = ['Todas', 'Brazilian Market', 'International Market']
-        if 'selected_news_category' not in st.session_state:
-            st.session_state.selected_news_category = 'Todas'
-        
-        selected_category = st.selectbox(
-            "Filtrar por categoria:", 
-            categories,
-            index=categories.index(st.session_state.selected_news_category),
-            key="news_category_filter"
-        )
-        
-        # Update session state
-        st.session_state.selected_news_category = selected_category
-        
-        # Filter news (optimized)
-        if selected_category != 'Todas':
-            filtered_news = [news for news in news_data if news['category'] == selected_category]
-        else:
-            filtered_news = news_data
-        
-        st.markdown("---")
-        
-        # Display news
-        for i, news in enumerate(filtered_news[:20]):  # Show max 20 news items
-            with st.container():
-                col1, col2 = st.columns([4, 1])
-                
-                with col1:
-                    st.markdown(f"**[{news['title']}]({news['link']})**")
-                    st.caption(f"📅 {news['published']} | 📰 {news['source']}")
-                
-                with col2:
-                    if news['category'] == 'Brazilian Market':
-                        st.markdown("🇧🇷 **Brasil**")
-                    else:
-                        st.markdown("🌍 **Internacional**")
-                
-                st.markdown("---")
-        
-        st.caption(f"📊 Exibindo {len(filtered_news)} notícias | Última atualização: {datetime.now().strftime('%H:%M:%S')}")
-        
-    else:
-        st.error("❌ Não foi possível carregar as notícias. Tente novamente mais tarde.")
-        
-    # News sources info
-    st.markdown("### 📡 Fontes de Notícias")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("**🇧🇷 Fontes Brasileiras:**")
-        st.markdown("• InfoMoney")
-        st.markdown("• Valor Econômico")
-    
-    with col2:
-        st.markdown("**🌍 Fontes Internacionais:**")
-        st.markdown("• Yahoo Finance")
-        st.markdown("• MarketWatch")
+
+
 
 # Sidebar status
 st.sidebar.markdown("---")
@@ -808,7 +717,6 @@ st.sidebar.write(f"📈 Current stock: {stock_symbol}")
 total_portfolio_stocks = sum(len(stocks) for stocks in ALL_STOCKS.values())
 st.sidebar.write(f"📊 Portfolio: {total_portfolio_stocks} ativos")
 st.sidebar.write(f"⚖️ Comparison: Available")
-st.sidebar.write(f"📰 News: Live Feed")
 
 if 'data' in locals() and data:
     st.sidebar.success(f"✅ {stock_symbol} data loaded successfully")
