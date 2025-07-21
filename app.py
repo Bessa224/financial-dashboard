@@ -770,8 +770,7 @@ with tab3:
         else:
             st.warning("⚠️ Selecione duas ações diferentes para comparar.")
     
-    st.markdown("---")
-    st.markdown("**💡 Dica:** Use esta ferramenta para comparar ações do mesmo setor ou analisar diferentes oportunidades de investimento.")
+   
 
 # Tab 4: Financial News
 with tab4:
