@@ -6,6 +6,9 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
 import numpy as np
+import requests
+from bs4 import BeautifulSoup
+import feedparser
 
 # Page configuration
 st.set_page_config(
@@ -122,7 +125,7 @@ with col2:
     st.markdown("<p style='text-align: center; color: #666;'>Comprehensive Stock Analysis & Real-Time Data</p>", unsafe_allow_html=True)
 
 # Tab navigation
-tab1, tab2 = st.tabs(["📈 Individual Stock Analysis", "📊 All Stocks Table"])
+tab1, tab2, tab3, tab4 = st.tabs(["📈 Individual Stock Analysis", "📊 All Stocks Table", "⚖️ Stock Comparison", "📰 Financial News"])
 
 # All stocks from your Excel spreadsheet
 ALL_STOCKS = {
@@ -230,6 +233,115 @@ def style_dataframe(df):
     })
     
     return styled_df
+
+# Function to compare two stocks
+def compare_stocks(symbol1, symbol2, timeframe="1mo"):
+    """Compare two stocks side by side"""
+    try:
+        stock1 = yf.Ticker(symbol1)
+        stock2 = yf.Ticker(symbol2)
+        
+        info1 = stock1.info
+        info2 = stock2.info
+        
+        # Get historical data
+        hist1 = stock1.history(period=timeframe)
+        hist2 = stock2.history(period=timeframe)
+        
+        if hist1.empty or hist2.empty:
+            return None, None, None, None
+        
+        # Normalize prices for comparison (percentage change from start)
+        hist1_norm = (hist1['Close'] / hist1['Close'].iloc[0] - 1) * 100
+        hist2_norm = (hist2['Close'] / hist2['Close'].iloc[0] - 1) * 100
+        
+        return info1, info2, hist1_norm, hist2_norm
+    except Exception as e:
+        return None, None, None, None
+
+# Function to get financial news
+def get_financial_news():
+    """Get financial news from various sources"""
+    news_data = []
+    
+    # Brazilian financial news sources
+    try:
+        # InfoMoney RSS
+        infomoney_feed = feedparser.parse('https://www.infomoney.com.br/feed/')
+        for entry in infomoney_feed.entries[:5]:
+            news_data.append({
+                'title': entry.title,
+                'link': entry.link,
+                'published': entry.published if hasattr(entry, 'published') else 'N/A',
+                'source': 'InfoMoney 🇧🇷',
+                'category': 'Brazilian Market'
+            })
+    except:
+        pass
+    
+    try:
+        # Valor Econômico RSS
+        valor_feed = feedparser.parse('https://valor.globo.com/rss/home/')
+        for entry in valor_feed.entries[:5]:
+            news_data.append({
+                'title': entry.title,
+                'link': entry.link,
+                'published': entry.published if hasattr(entry, 'published') else 'N/A',
+                'source': 'Valor Econômico 🇧🇷',
+                'category': 'Brazilian Market'
+            })
+    except:
+        pass
+    
+    # International financial news
+    try:
+        # Yahoo Finance RSS
+        yahoo_feed = feedparser.parse('https://feeds.finance.yahoo.com/rss/2.0/headline')
+        for entry in yahoo_feed.entries[:5]:
+            news_data.append({
+                'title': entry.title,
+                'link': entry.link,
+                'published': entry.published if hasattr(entry, 'published') else 'N/A',
+                'source': 'Yahoo Finance 🌍',
+                'category': 'International Market'
+            })
+    except:
+        pass
+    
+    try:
+        # MarketWatch RSS
+        marketwatch_feed = feedparser.parse('https://feeds.marketwatch.com/marketwatch/topstories/')
+        for entry in marketwatch_feed.entries[:5]:
+            news_data.append({
+                'title': entry.title,
+                'link': entry.link,
+                'published': entry.published if hasattr(entry, 'published') else 'N/A',
+                'source': 'MarketWatch 🌍',
+                'category': 'International Market'
+            })
+    except:
+        pass
+    
+    # Add some fallback news if RSS feeds fail
+    if not news_data:
+        news_data = [
+            {
+                'title': 'Mercado financeiro em análise - Acompanhe as principais notícias',
+                'link': 'https://www.infomoney.com.br',
+                'published': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'source': 'InfoMoney 🇧🇷',
+                'category': 'Brazilian Market'
+            },
+            {
+                'title': 'Global Markets Update - Stay informed with latest trends',
+                'link': 'https://finance.yahoo.com',
+                'published': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'source': 'Yahoo Finance 🌍',
+                'category': 'International Market'
+            }
+        ]
+    
+    return news_data
 
 # Enhanced stock data function
 def get_comprehensive_stock_data(symbol, timeframe="Current"):
@@ -543,6 +655,188 @@ with tab2:
     # Last update time for table
     st.caption(f"Última atualização: {datetime.now().strftime('%H:%M:%S')}")
 
+# Tab 3: Stock Comparison
+with tab3:
+    st.subheader("⚖️ Comparação de Ações")
+    st.markdown("*Compare duas ações lado a lado com gráficos e métricas*")
+    
+    # Stock selection for comparison
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        stock1_symbol = st.selectbox(
+            "Primeira Ação:",
+            options=["AAPL", "GOOGL", "MSFT", "TSLA", "PETR4.SA", "VALE3.SA", "ITUB4.SA", "BBDC4.SA"],
+            index=0,
+            key="stock1_compare"
+        )
+    with col2:
+        stock2_symbol = st.selectbox(
+            "Segunda Ação:",
+            options=["GOOGL", "AAPL", "MSFT", "TSLA", "VALE3.SA", "PETR4.SA", "ITUB4.SA", "BBDC4.SA"],
+            index=0,
+            key="stock2_compare"
+        )
+    with col3:
+        comparison_timeframe = st.selectbox(
+            "Período:",
+            options=["5d", "1mo", "3mo", "6mo", "1y"],
+            index=1,
+            key="comparison_timeframe"
+        )
+    
+    if st.button("🔄 Comparar Ações", key="compare_button"):
+        if stock1_symbol != stock2_symbol:
+            with st.spinner('Carregando dados para comparação...'):
+                info1, info2, hist1_norm, hist2_norm = compare_stocks(stock1_symbol, stock2_symbol, comparison_timeframe)
+            
+            if info1 and info2 and hist1_norm is not None and hist2_norm is not None:
+                # Display comparison metrics
+                st.markdown("### 📊 Métricas Comparativas")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown(f"**{stock1_symbol}** - {info1.get('longName', stock1_symbol)}")
+                    price1 = info1.get('regularMarketPrice', 0) or 0
+                    change1 = info1.get('regularMarketChangePercent', 0) or 0
+                    pe1 = info1.get('trailingPE', 0) or 0
+                    beta1 = info1.get('beta', 0) or 0
+                    
+                    st.metric("Preço", f"${price1:.2f}" if '.SA' not in stock1_symbol else f"R$ {price1:.2f}")
+                    st.metric("Variação %", f"{change1:+.2f}%")
+                    st.metric("P/E Ratio", f"{pe1:.2f}" if pe1 > 0 else "N/A")
+                    st.metric("Beta", f"{beta1:.2f}" if beta1 > 0 else "N/A")
+                
+                with col2:
+                    st.markdown(f"**{stock2_symbol}** - {info2.get('longName', stock2_symbol)}")
+                    price2 = info2.get('regularMarketPrice', 0) or 0
+                    change2 = info2.get('regularMarketChangePercent', 0) or 0
+                    pe2 = info2.get('trailingPE', 0) or 0
+                    beta2 = info2.get('beta', 0) or 0
+                    
+                    st.metric("Preço", f"${price2:.2f}" if '.SA' not in stock2_symbol else f"R$ {price2:.2f}")
+                    st.metric("Variação %", f"{change2:+.2f}%")
+                    st.metric("P/E Ratio", f"{pe2:.2f}" if pe2 > 0 else "N/A")
+                    st.metric("Beta", f"{beta2:.2f}" if beta2 > 0 else "N/A")
+                
+                # Performance comparison chart
+                st.markdown("### 📈 Comparação de Performance (Normalizada)")
+                
+                fig_comparison = go.Figure()
+                
+                fig_comparison.add_trace(go.Scatter(
+                    x=hist1_norm.index,
+                    y=hist1_norm.values,
+                    mode='lines',
+                    name=stock1_symbol,
+                    line=dict(color='#1f77b4', width=2)
+                ))
+                
+                fig_comparison.add_trace(go.Scatter(
+                    x=hist2_norm.index,
+                    y=hist2_norm.values,
+                    mode='lines',
+                    name=stock2_symbol,
+                    line=dict(color='#ff7f0e', width=2)
+                ))
+                
+                fig_comparison.update_layout(
+                    title=f"Performance Comparison: {stock1_symbol} vs {stock2_symbol}",
+                    xaxis_title="Data",
+                    yaxis_title="Performance (%)",
+                    height=500,
+                    hovermode='x unified'
+                )
+                
+                st.plotly_chart(fig_comparison, use_container_width=True)
+                
+                # Performance summary
+                perf1 = hist1_norm.iloc[-1]
+                perf2 = hist2_norm.iloc[-1]
+                
+                st.markdown("### 🏆 Resumo de Performance")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(f"{stock1_symbol} Performance", f"{perf1:+.2f}%")
+                with col2:
+                    st.metric(f"{stock2_symbol} Performance", f"{perf2:+.2f}%")
+                with col3:
+                    winner = stock1_symbol if perf1 > perf2 else stock2_symbol
+                    st.metric("Melhor Performance", winner)
+                    
+            else:
+                st.error("❌ Erro ao carregar dados para comparação. Verifique os símbolos.")
+        else:
+            st.warning("⚠️ Selecione duas ações diferentes para comparar.")
+    
+    st.markdown("---")
+    st.markdown("**💡 Dica:** Use esta ferramenta para comparar ações do mesmo setor ou analisar diferentes oportunidades de investimento.")
+
+# Tab 4: Financial News
+with tab4:
+    st.subheader("📰 Notícias Financeiras")
+    st.markdown("*Últimas notícias do mercado brasileiro e internacional*")
+    
+    # Refresh button for news
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("🔄 Atualizar Notícias", key="refresh_news"):
+            st.rerun()
+    
+    # Load financial news
+    with st.spinner('Carregando notícias financeiras...'):
+        news_data = get_financial_news()
+    
+    if news_data:
+        # Filter by category
+        categories = ['Todas', 'Brazilian Market', 'International Market']
+        selected_category = st.selectbox("Filtrar por categoria:", categories)
+        
+        # Filter news
+        if selected_category != 'Todas':
+            filtered_news = [news for news in news_data if news['category'] == selected_category]
+        else:
+            filtered_news = news_data
+        
+        st.markdown("---")
+        
+        # Display news
+        for i, news in enumerate(filtered_news[:20]):  # Show max 20 news items
+            with st.container():
+                col1, col2 = st.columns([4, 1])
+                
+                with col1:
+                    st.markdown(f"**[{news['title']}]({news['link']})**")
+                    st.caption(f"📅 {news['published']} | 📰 {news['source']}")
+                
+                with col2:
+                    if news['category'] == 'Brazilian Market':
+                        st.markdown("🇧🇷 **Brasil**")
+                    else:
+                        st.markdown("🌍 **Internacional**")
+                
+                st.markdown("---")
+        
+        st.caption(f"📊 Exibindo {len(filtered_news)} notícias | Última atualização: {datetime.now().strftime('%H:%M:%S')}")
+        
+    else:
+        st.error("❌ Não foi possível carregar as notícias. Tente novamente mais tarde.")
+        
+    # News sources info
+    st.markdown("### 📡 Fontes de Notícias")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**🇧🇷 Fontes Brasileiras:**")
+        st.markdown("• InfoMoney")
+        st.markdown("• Valor Econômico")
+    
+    with col2:
+        st.markdown("**🌍 Fontes Internacionais:**")
+        st.markdown("• Yahoo Finance")
+        st.markdown("• MarketWatch")
+
 # Sidebar status
 st.sidebar.markdown("---")
 st.sidebar.markdown("**📊 Dashboard Status**")
@@ -554,6 +848,8 @@ st.sidebar.write(f"📈 Current stock: {stock_symbol}")
 # Show total stocks in portfolio
 total_portfolio_stocks = sum(len(stocks) for stocks in ALL_STOCKS.values())
 st.sidebar.write(f"📊 Portfolio: {total_portfolio_stocks} ativos")
+st.sidebar.write(f"⚖️ Comparison: Available")
+st.sidebar.write(f"📰 News: Live Feed")
 
 if 'data' in locals() and data:
     st.sidebar.success(f"✅ {stock_symbol} data loaded successfully")
